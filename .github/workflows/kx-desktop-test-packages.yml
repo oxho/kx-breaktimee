@@ -1,0 +1,74 @@
+name: K-x Breaktime installers
+
+on:
+  push:
+    branches: [main, codex/kx-breaktime]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2025
+    env:
+      HUSKY: 0
+    defaults:
+      run:
+        working-directory: 歇刻 构建
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: 歇刻 构建
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: npm exec --no -- install-electron
+      - run: npm test
+      - run: npm exec electron-builder -- --win nsis --x64 --publish never
+      - name: Hash installer
+        shell: pwsh
+        run: |
+          $installer = @(Get-ChildItem dist/KxBreaktime-*-Setup.exe)
+          if ($installer.Count -ne 1) { throw 'Expected one Setup.exe' }
+          $hash = (Get-FileHash -Algorithm SHA256 $installer[0].FullName).Hash.ToLowerInvariant()
+          "$hash  $($installer[0].Name)" | Set-Content dist/SHA256.txt -Encoding utf8
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KxBreaktime-Windows-x64
+          if-no-files-found: error
+          path: |
+            歇刻 构建/dist/KxBreaktime-*-Setup.exe
+            歇刻 构建/dist/SHA256.txt
+
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    env:
+      HUSKY: 0
+      CSC_IDENTITY_AUTO_DISCOVERY: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: npm exec --no -- install-electron
+      - run: npm test
+      - run: npm exec electron-builder -- --mac dmg --${{ matrix.arch }} --publish never
+      - run: cd dist && shasum -a 256 KxBreaktime-*.dmg > SHA256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KxBreaktime-macOS-${{ matrix.arch }}
+          if-no-files-found: error
+          path: |
+            dist/KxBreaktime-*.dmg
+            dist/SHA256.txt
