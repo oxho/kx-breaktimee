@@ -1,13 +1,13 @@
 !include "nsDialogs.nsh"
 
 !macro customHeader
+  !ifndef BUILD_UNINSTALLER
   Var KxDesktop
   Var KxStartMenu
   Var KxDesktopChoice
   Var KxStartMenuChoice
   Var KxAskedShortcuts
 
-  !ifndef BUILD_UNINSTALLER
   Function KxShortcutOptions
     !insertmacro MUI_HEADER_TEXT "选择快捷方式" "分别选择桌面和开始菜单快捷方式。"
     nsDialogs::Create 1018
